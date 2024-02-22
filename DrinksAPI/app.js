@@ -26,8 +26,6 @@ app.get('/drinks/:id', (req,res) => {
 
 app.post('/drinks', (req,res) => {
     const lastDrink = drinks[drinks.length - 1];
-    console.log(lastDrink);
-    console.log(req.body.name);
     const newId = parseInt(lastDrink.id + 1);
     const name = req.body.name;
     const newDrink = {
