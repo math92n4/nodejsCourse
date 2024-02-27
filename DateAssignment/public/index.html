@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Lets check some timezones!</h1>
+    <select id="select"></select>
+    <button id="button">Check what time it is</button>
+    <div id="table-div"></div>
+    
+    <script>
+        const select = document.getElementById('select');
+        const button = document.getElementById('button');
+        const div = document.getElementById('table-div')
+        button.addEventListener('click', fetchTimezoneData)
+        document.addEventListener('DOMContentLoaded', fetchDropdown)
+        let date = new Date();
+        
+        function fetchDropdown() {
+            fetch('/countries')
+                .then((response) => response.json())
+                .then((data) => {
+                    // comes out as an object and not an array 
+                    const countries = Object.values(data.countries)
+                    countries.forEach(country => {
+                        const option = document.createElement('option');
+                        option.textContent = country.name;
+                        option.value = country.id
+                        select.appendChild(option)
+                });
+            })
+        }
+
+        function fetchTimezoneData() {
+            const selectedCountry = select.value;
+            fetch(`/countries/${selectedCountry}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    populateTable(data.timezones)
+                })
+        }
+
+        function populateTable(data) {
+            div.innerHTML = ""
+            const table = document.createElement('table');
+            const tr = document.createElement('tr');
+            const thCityName = document.createElement('th');
+            thCityName.textContent = 'City name';
+            const thTime = document.createElement('th');
+            thTime.textContent = 'Time'
+            table.appendChild(tr);
+            tr.appendChild(thCityName);
+            tr.appendChild(thTime);
+            div.appendChild(table)
+
+            data.forEach(city => {
+                const dataTr = document.createElement('tr');
+                table.appendChild(dataTr);
+                const cityData = document.createElement('td');
+                cityData.textContent = splitCityName(city.name);
+                dataTr.appendChild(cityData);
+                const timeData = document.createElement('td');
+                timeData.textContent = calculateTime(city.utcOffsetStr)
+                dataTr.appendChild(timeData);
+            })
+        }
+
+        function splitCityName(string) {
+            // can either contain _ or /
+            // if _ then its city name with space
+            // if / then region before city name
+            return string.split('/')[1];
+        }
+
+        // this is funkyyy
+        function calculateTime(time) {
+            const plusMinus = time.charAt(0);
+            const trimmedHours = time.split(':')[0];
+            const hours = trimmedHours.split(plusMinus)[1];
+            const parsedHours = parseInt(hours);
+
+            const londonTime = getLondonTime();
+            const trimmedLondonTime = londonTime.split(" ")[1];
+            let londonHours = parseInt(trimmedLondonTime.split(":")[0]);
+            const londonMinutes = trimmedLondonTime.split(":")[1];
+            
+            let finalHours;
+
+            if(plusMinus === '-') {
+                finalHours = londonHours - parsedHours;
+            } else {
+                finalHours = londonHours + parsedHours;
+            }
+
+            if(finalHours > 23) {
+                finalHours -= 24;
+            } else if(finalHours < 0) {
+                // check if this works
+                finalHours += 24
+            }
+
+            console.log(finalHours);
+
+            const finalTime = `${finalHours}:${londonMinutes}`
+
+            return finalTime;
+        }
+
+        function getLondonTime() {
+            return date.toLocaleString("en-GB", {timeZone: "Europe/London"})
+        }
+
+
+    </script>
+</body>
+</html>
