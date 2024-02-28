@@ -3,76 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Timezones</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #4b4b4b, #000000);
+            height: 100vh; 
+            color:aliceblue
+        }
+
+        #main-div {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 h2{
+            font-weight: 200;
+        }
+        
+        #top-div {
+            text-align: center;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            
+        }
+
+        input {
+            height: 40px;
+            width: 300px;
+            font-size: 18px;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+
+        #suggestions {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background-color: #fff;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        #suggestions p {
+            margin: 5px 0;
+            color: #333;
+            cursor: pointer;
+        }
+
+        #suggestions p:hover {
+            background-color: #f2f2f2;
+        }
+
+        #timezone-div {
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+            width: 50vh;
+            height: 60vh;
+            font-size: 40px;
+        }
+
+        #digital-watch {
+            color: #3498db;
+            font-size: 125px;
+            font-weight: bold;
+            top: 40px;
+        }
+
+        
+
+    </style>
 </head>
 <body>
-    <h1>Lets check some timezones!</h1>
-    <select id="select"></select>
-    <button id="button">Check what time it is</button>
-    <div id="table-div"></div>
+
+    <div id="main-div">
+        <div id="top-div">
+            <h1>Lets check some timezones!</h1>
+            <input id="input" placeholder="Type a city name">
+            <div id="suggestions"></div>
+        </div>
+
+        <div id="timezone-div">
+            <div id="city-name"></div>
+            <div id="digital-watch"></div>
+        </div>
+    </div>
+
+    
     
     <script>
-        const select = document.getElementById('select');
-        const button = document.getElementById('button');
-        const div = document.getElementById('table-div')
-        button.addEventListener('click', fetchTimezoneData)
-        document.addEventListener('DOMContentLoaded', fetchDropdown)
-        let date = new Date();
+        const div = document.getElementById('div')
+        const input = document.getElementById('input')
+        const cityNameDiv = document.getElementById('city-name')
+        const digitalWatch = document.getElementById('digital-watch')
+        const suggestions = document.getElementById('suggestions')
+        input.addEventListener('input', searchForCities)
         
-        function fetchDropdown() {
-            fetch('/countries')
+        document.addEventListener('DOMContentLoaded', fetchCities)
+        let date = new Date();
+        let cities = [];
+        
+        
+        function fetchCities() {
+            fetch('/timezones')
                 .then((response) => response.json())
-                .then((data) => {
-                    // comes out as an object and not an array 
-                    const countries = Object.values(data.countries)
-                    countries.forEach(country => {
-                        const option = document.createElement('option');
-                        option.textContent = country.name;
-                        option.value = country.id
-                        select.appendChild(option)
+                .then((data) => {   
+                    const cityData = Object.values(data.timezones)             
+                    cityData.forEach(city => {
+                        const fixedCityName = splitName(city.name);
+                        const region = getRegion(city.name);
+                        const cityObj = {
+                            name: fixedCityName,
+                            region: region,
+                            timezone: city.utcOffsetStr
+                        }
+                        
+                        if(!containNumbers(cityObj.name)) {
+                            cities.push(cityObj);
+                        }
                 });
             })
+    
         }
 
-        function fetchTimezoneData() {
-            const selectedCountry = select.value;
-            fetch(`/countries/${selectedCountry}`)
-                .then((response) => response.json())
-                .then((data) => {
-                    populateTable(data.timezones)
-                })
+        function containNumbers(string) {
+            return /\d/.test(string);
         }
 
-        function populateTable(data) {
-            div.innerHTML = ""
-            const table = document.createElement('table');
-            const tr = document.createElement('tr');
-            const thCityName = document.createElement('th');
-            thCityName.textContent = 'City name';
-            const thTime = document.createElement('th');
-            thTime.textContent = 'Time'
-            table.appendChild(tr);
-            tr.appendChild(thCityName);
-            tr.appendChild(thTime);
-            div.appendChild(table)
-
-            data.forEach(city => {
-                const dataTr = document.createElement('tr');
-                table.appendChild(dataTr);
-                const cityData = document.createElement('td');
-                cityData.textContent = splitCityName(city.name);
-                dataTr.appendChild(cityData);
-                const timeData = document.createElement('td');
-                timeData.textContent = calculateTime(city.utcOffsetStr)
-                dataTr.appendChild(timeData);
+        function searchForCities() {
+            const inputValue = input.value.toLowerCase();
+            const filteredCities = cities.filter(city => city.name.toLowerCase().startsWith(inputValue))
+            suggestions.innerHTML = "";
+            
+            filteredCities.forEach(city => {
+                const p = document.createElement('p');
+                p.textContent = city.name;
+                p.addEventListener('click', () => {
+                    input.value = city.name;
+                    suggestions.style.display = "none";
+                    getTimezoneData(city.name)
+                });
+                suggestions.appendChild(p);
             })
+            if(inputValue === '' || filteredCities.length === 0) {
+                suggestions.style.display = 'none'
+            } else {
+                suggestions.style.display = 'block'
+            }
         }
 
-        function splitCityName(string) {
-            // can either contain _ or /
-            // if _ then its city name with space
-            // if / then region before city name
-            return string.split('/')[1];
+        function getTimezoneData(cityName) {
+            const foundCity = cities.find(city => city.name === cityName);
+            if(foundCity) {
+                populateTimezoneDiv(foundCity);
+            } else {
+                console.log('City not found');
+            }
+        }
+
+        function populateTimezoneDiv(city) {
+            cityNameDiv.innerHTML = "";
+            digitalWatch.innerHTML = "";
+            const h1 = document.createElement('h1');
+            h1.textContent = city.name;
+            cityNameDiv.appendChild(h1);
+            const h2 = document.createElement('h2');
+            h2.textContent = city.region;
+            cityNameDiv.appendChild(h2);
+
+            document.createElement('h1');
+            digitalWatch.textContent = calculateTime(city.timezone);
+            
+
+        }
+
+        // resolving name values such as
+        // 'America/Argentina/Buenos_Aires'
+        function splitName(string) {
+            let lastSlashIndex = string.lastIndexOf('/');
+            let newString = string.slice(lastSlashIndex + 1)
+            let finalString = newString.replace('_', ' ')
+            return finalString;
+        }
+
+        function getRegion(string) {
+            return string.split('/')[0];
         }
 
         // this is funkyyy
@@ -101,8 +229,6 @@
                 // check if this works
                 finalHours += 24
             }
-
-            console.log(finalHours);
 
             const finalTime = `${finalHours}:${londonMinutes}`
 

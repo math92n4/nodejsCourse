@@ -6,15 +6,9 @@ app.get("/", (req, res) => {
     res.sendFile(__dirname + "/public/index.html");
 });
 
-app.get('/countries', (req, res) => {
-    const countries = ct.getAllCountries();
-    res.send({ countries })
-})
-
-app.get('/countries/:landcode', (req, res) => {
-    const landCode = req.params.landcode.toUpperCase();
-    const timezones = ct.getTimezonesForCountry(landCode);
-    res.send({timezones})
+app.get('/timezones', (req, res) => {
+    const timezones = ct.getAllTimezones();
+    res.send({ timezones })
 })
 
 const PORT = 8080;
